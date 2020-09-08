@@ -1132,6 +1132,67 @@ var _ = Describe("'Micro-service' service", func() {
 				Expect(resp.Response.GetCode()).ToNot(Equal(proto.Response_SUCCESS))
 			})
 		})
+
+		Context("update super consumer", func() {
+			var (
+				consumerId string
+			)
+
+			It("should be passed", func() {
+				respCreateService, err := serviceResource.Create(getContext(), &pb.CreateServiceRequest{
+					Service: &pb.MicroService{
+						AppId:       "depend_on_all_services",
+						ServiceName: "super_watch_consumer",
+						Version:     "1.0.0",
+					},
+				})
+				Expect(err).To(BeNil())
+				Expect(respCreateService.Response.GetCode()).To(Equal(proto.Response_SUCCESS))
+				consumerId = respCreateService.ServiceId
+
+				By("set super consumer")
+				respSetSuperConsumer, err := serviceResource.SetSuperConsumer(getContext(), &pb.SetSuperConsumerRequest{
+					ServiceId: consumerId,
+				})
+				Expect(err).To(BeNil())
+				Expect(respSetSuperConsumer.Response.GetCode()).To(Equal(proto.Response_SUCCESS))
+
+				By("super consumer depend on new service")
+				respCreateService, err = serviceResource.Create(getContext(), &pb.CreateServiceRequest{
+					Service: &pb.MicroService{
+						AppId:       "new_services",
+						ServiceName: "new_provider",
+						Version:     "1.0.0",
+					},
+				})
+				Expect(err).To(BeNil())
+				Expect(respCreateService.Response.GetCode()).To(Equal(proto.Response_SUCCESS))
+
+				By("unset super consumer")
+				respUnsetSuperConsumer, err := serviceResource.UnsetSuperConsumer(getContext(), &pb.UnsetSuperConsumerRequest{
+					ServiceId: consumerId,
+				})
+				Expect(err).To(BeNil())
+				Expect(respUnsetSuperConsumer.Response.GetCode()).To(Equal(proto.Response_SUCCESS))
+			})
+
+			It("should be failed", func() {
+				By("set not exist service as super consumer")
+				respSetSuperConsumer, err := serviceResource.SetSuperConsumer(getContext(), &pb.SetSuperConsumerRequest{
+					ServiceId: "service not exist",
+				})
+				Expect(err).To(BeNil())
+				Expect(respSetSuperConsumer.Response.GetCode()).ToNot(Equal(proto.Response_SUCCESS))
+
+				By("unset super consumer")
+				respUnsetSuperConsumer, err := serviceResource.UnsetSuperConsumer(getContext(), &pb.UnsetSuperConsumerRequest{
+					ServiceId: "service not exist",
+				})
+				Expect(err).To(BeNil())
+				Expect(respUnsetSuperConsumer.Response.GetCode()).ToNot(Equal(proto.Response_SUCCESS))
+			})
+
+		})
 	})
 
 	Describe("execute 'delete' operartion", func() {
